@@ -1,10 +1,8 @@
 import os
 import time
+import json
 
-import numpy as np
-import torch
 import torch.nn.functional as F
-from torch.autograd import Variable
 import torch.optim as optim
 
 from models import get_model
@@ -22,10 +20,11 @@ parser = argparse.ArgumentParser(description='Volumization Evaluation')
 parser.add_argument('--dataset', type=str, default="IMDB")
 parser.add_argument('--model', type=str, default="LSTM")
 parser.add_argument('--task_id', type=str, default='default')
+parser.add_argument('--cuda', type=int, default=0)
 # optimizer related
-parser.add_argument('--eps', type=float, default=1.9, help="epsilon")
-parser.add_argument('--lr', type=float, default=2e-3, help="learning rate")
-parser.add_argument('--v', type=float, default=0.1, help="limitation of volumization")
+parser.add_argument('--eps', type=float, default=1.9, help="epsilon for determining the threshold")
+parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
+parser.add_argument('--v', type=float, default=1, help="limitation of volumization")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=20, help="number of epochs")
 # noise ratio
@@ -35,10 +34,20 @@ params = parser.parse_args()
 model_for_data = {"IMDB": ["LSTM"]}
 assert params.model in model_for_data[params.dataset]
 
+
+if torch.cuda.is_available():
+    device = torch.device('cuda:{}'.format(params.cuda))
+else:
+    device = 'cpu'
+
+
 timestamp = time.strftime("%y%m%d-%H%M%S-", time.localtime())
-log_dir_name = params.dataset
-task_name = timestamp + params.model
-train_logger = Logger(task_name=task_name+'train',
+log_dir_name = os.path.join('log', params.dataset)
+task_name = params.task_id + '-' + timestamp + "-" + params.model
+
+with open(os.path.join(log_dir_name, task_name + ".meta"), mode='wt') as f:
+    json.dump(vars(params), f)
+train_logger = Logger(task_name=task_name,
                       dir_name=log_dir_name,
                       heading='epoch train_loss train_acc val_loss val_acc test_loss test_acc'.split())
 
@@ -49,67 +58,55 @@ def clip_gradient(model, clip_value):
         p.grad.data.clamp_(-clip_value, clip_value)
 
 
-def train_model(model, train_iter, epoch):
+def train_model(model, _iter):
     total_epoch_loss = 0
     total_epoch_acc = 0
-    if torch.cuda.is_available():
-        model.cuda()
-    steps = 0
-    model.train()
-    for idx, batch in enumerate(train_iter):
-        text = batch.text[0]
-        target = batch.label
-        target = torch.autograd.Variable(target).long()
-        if torch.cuda.is_available():
-            text = text.cuda()
-            target = target.cuda()
-        if text.size()[0] is not batch_size:
-            continue
-        optim.zero_grad()
-        prediction = model(text)
 
-        output = F.log_softmax(prediction, dim=1)
+    model.train()
+    for idx, batch in enumerate(_iter):
+        text = batch.text[0].to(device)
+        target = batch.label.to(device)
+
+        optim.zero_grad()
+
+        logits = model(text)
+        output = F.log_softmax(logits, dim=1)
+        preds = torch.max(logits, 1)[1].view(target.size())
         loss = F.nll_loss(output, target)
 
-        num_corrects = (torch.max(prediction[:, :2], 1)[1].view(target.size()).data == target.data).float().sum()
+        num_corrects = (preds == target).float().sum()
         acc = 100.0 * num_corrects/len(batch)
+
         loss.backward()
-        #clip_gradient(model, 1e-1)
         optim.step()
-        steps += 1
-        
-        if steps % 100 == 0:
-            print('Epoch:', epoch+1, 'Idx:', idx+1, 'Training Loss:', loss.item(), 'Training Accuracy:', acc.item())
-        
+
         total_epoch_loss += loss.item()
         total_epoch_acc += acc.item()
         
-    return total_epoch_loss/len(train_iter), total_epoch_acc/len(train_iter)
+    return total_epoch_loss / len(_iter), total_epoch_acc / len(_iter)
 
 
-def eval_model(model, val_iter):
+def eval_model(model, _iter):
     total_epoch_loss = 0
     total_epoch_acc = 0
     model.eval()
     with torch.no_grad():
-        for idx, batch in enumerate(val_iter):
-            text = batch.text[0]
-            if (text.size()[0] is not batch_size):
-                continue
-            target = batch.label
-            target = torch.autograd.Variable(target).long()
-            if torch.cuda.is_available():
-                text = text.cuda()
-                target = target.cuda()
-            prediction = model(text)
-            loss = F.nll_loss(prediction, target)
+        for idx, batch in enumerate(_iter):
+            text = batch.text[0].to(device)
+            target = batch.label.to(device)
 
-            num_corrects = (torch.max(prediction[:, :2], 1)[1].view(target.size()).data == target.data).sum()
-            acc = 100.0 * num_corrects/len(batch)
+            logits = model(text)
+            output = F.log_softmax(logits, dim=1)
+            preds = torch.max(logits, 1)[1].view(target.size())
+            loss = F.nll_loss(output, target)
+
+            num_corrects = (preds == target).float().sum()
+            acc = 100.0 * num_corrects / len(batch)
+
             total_epoch_loss += loss.item()
             total_epoch_acc += acc.item()
 
-    return total_epoch_loss/len(val_iter), total_epoch_acc/len(val_iter)
+    return total_epoch_loss / len(_iter), total_epoch_acc / len(_iter)
 
 
 def loss_theo(o, e):
@@ -128,15 +125,16 @@ if __name__ == "__main__":
         model_params["hidden_size"] = 256
 
     if params.model == "LSTM":
-        model_params["weights"] = {"weights": embedding}
+        model_params["weights"] = embedding
 
     model = get_model(params.model, **model_params)
+    model.to(device)
 
     optim = Vadam(model.parameters(), lr=params.lr, eps=1e-15, v=params.v)
 
-    thr = loss_theo(params.eps, params.noise_ratio)
+    # thr = loss_theo(params.eps, params.noise_ratio)
     for epoch in range(params.num_epochs):
-        train_loss, train_acc = train_model(model, train_iter, epoch)
+        train_loss, train_acc = train_model(model, train_iter)
         val_loss, val_acc = eval_model(model, valid_iter)
         test_loss, test_acc = eval_model(model, test_iter)
         train_logger.append(epoch+1, train_loss, train_acc, val_loss, val_acc, test_loss, test_acc)

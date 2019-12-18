@@ -21,7 +21,7 @@ class LSTMClassifier(nn.Module):
         self.hidden_size = hidden_size
         vocab_size, embedding_len = weights.shape
         self.word_embeddings = nn.Embedding(vocab_size, embedding_len)
-        if weights: self.word_embeddings.from_pretrained(weights, freeze=True)
+        if weights is not None: self.word_embeddings.from_pretrained(weights, freeze=True)
         self.lstm = nn.LSTM(embedding_len, hidden_size)
         self.label = nn.Linear(hidden_size, output_size)
 

@@ -73,19 +73,19 @@ class Logger:
         if heading:
             self.L = len(heading)
             with open(self.logfile, mode='at') as f:
-                f.write(", ".join(heading))
+                f.write(", ".join(heading) + '\n')
         else:
             self.L = -1
 
-    def append(self, *entry, verbose=False):
+    def append(self, *entry, verbose=True):
         """
         entry is a tuple
         """
         assert self.L < 0 or self.L == len(entry)
         if self.heading and verbose:
-            print("|".join("{}: {}".format(k, v) for k, v in zip(self.heading, entry)))
+            print("|".join("{}: {:.4f}".format(k, v) for k, v in zip(self.heading, entry)))
         with open(self.logfile, mode='at') as f:
-            f.write(", ".join(entry))
+            f.write(", ".join(str(e) for e in entry)+"\n")
 
 
 if __name__ == "__main__":
