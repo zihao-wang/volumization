@@ -3,7 +3,7 @@ import torch
 from torch.optim import Optimizer
 
 
-class Adam(Optimizer):
+class Vadam(Optimizer):
     r"""Implements Adam algorithm.
 
     It has been proposed in `Adam: A Method for Stochastic Optimization`_.
@@ -39,11 +39,11 @@ class Adam(Optimizer):
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps,
                         weight_decay=weight_decay, amsgrad=amsgrad)
-        super(Adam, self).__init__(params, defaults)
+        super(Vadam, self).__init__(params, defaults)
         self.v = v
 
     def __setstate__(self, state):
-        super(Adam, self).__setstate__(state)
+        super(Vadam, self).__setstate__(state)
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
