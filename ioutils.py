@@ -1,39 +1,27 @@
 # _*_ coding: utf-8 _*_
 
 import os
-import sys
-import time
 import random
-import torch
-from torch.nn import functional as F
 import numpy as np
+import torch
+from torch.utils.data.dataset import Subset
 from torchtext import data
 from torchtext import datasets
 from torchtext.vocab import Vectors, GloVe
+import torchvision
+from torchvision.transforms import transforms
 
 
 def get_dataset(dataset, **kwargs):
     if dataset == "IMDB":
         return load_IMDB(**kwargs)
+    elif dataset == "CIFAR10":
+        return load_CIFAR10(**kwargs)
     else:
         raise IOError("unknown dataset")
 
 
 def load_IMDB(rate=0.2, batch_size=32):
-    """
-    tokenizer : Breaks sentences into a list of words. If sequential=False, no tokenization is applied
-    Field : A class that stores information about the way of preprocessing
-    fix_length : An important property of TorchText is that we can let the input to be variable length, and TorchText will
-                 dynamically pad each sequence to the longest sequence in that "batch". But here we are using fi_length which
-                 will pad each sequence to have a fix length of 200.
-                 
-    build_vocab : It will first make a vocabulary or dictionary mapping all the unique words present in the train_data to an
-                  idx and then after it will use GloVe word embedding to map the index to the corresponding word embedding.
-                  
-    vocab.vectors : This returns a torch tensor of shape (vocab_size x embedding_dim) containing the pre-trained word embeddings.
-    BucketIterator : Defines an iterator that batches examples of similar lengths together to minimize the amount of padding needed.
-    """
-    
     TEXT = data.Field(sequential=True,
                       tokenize=lambda x: x.split(),
                       lower=True,
@@ -64,6 +52,38 @@ def load_IMDB(rate=0.2, batch_size=32):
     return TEXT.vocab.vectors, train_iter, valid_iter, test_iter
 
 
+def load_CIFAR10(rate, batch_size=128):
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+
+
+    trainset = torchvision.datasets.CIFAR10(root='.data/cifar10', train=True, download=True, transform=transform_train)
+    target_array = np.asarray(trainset.targets)
+    L = len(target_array)
+    thr = rate - (1-rate) / 10
+    target_array = np.where(np.random.rand(L) < thr, target_array, np.random.randint(0, 9, L))
+    trainset.targets = target_array.tolist()
+    idx = np.random.permutation(L)
+    train_idx = idx[: int(L * 0.8)]
+    val_idx = idx[int(L * 0.8):]
+    trainset = Subset(trainset, train_idx)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+    valset = Subset(trainset, val_idx)
+    valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=True, num_workers=2)
+
+    testset = torchvision.datasets.CIFAR10(root='.data/cifar10', train=False, download=True, transform=transform_test)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    return None, trainloader, valloader, testloader
+
 class Logger:
     def __init__(self,  task_name, dir_name='log', heading=None):
         os.makedirs(dir_name, exist_ok=True)
@@ -89,4 +109,4 @@ class Logger:
 
 
 if __name__ == "__main__":
-    load_IMDB()
+    load_CIFAR10(0.5)

@@ -26,12 +26,12 @@ parser.add_argument('--eps', type=float, default=1.9, help="epsilon for determin
 parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
 parser.add_argument('--v', type=float, default=1, help="limitation of volumization")
 parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument("--num_epochs", type=int, default=20, help="number of epochs")
+parser.add_argument("--num_epochs", type=int, default=50, help="number of epochs")
 # noise ratio
 parser.add_argument('--noise_ratio', type=float, default=0.1, help="noise ratio")
 
 params = parser.parse_args()
-model_for_data = {"IMDB": ["LSTM"]}
+model_for_data = {"IMDB": ["LSTM"], "CIFAR10": ["ResNet18"]}
 assert params.model in model_for_data[params.dataset]
 
 
@@ -45,11 +45,11 @@ timestamp = time.strftime("%y%m%d-%H%M%S-", time.localtime())
 log_dir_name = os.path.join('log', params.dataset)
 task_name = params.task_id + '-' + timestamp + "-" + params.model
 
-with open(os.path.join(log_dir_name, task_name + ".meta"), mode='wt') as f:
-    json.dump(vars(params), f)
 train_logger = Logger(task_name=task_name,
                       dir_name=log_dir_name,
-                      heading='epoch train_loss train_acc val_loss val_acc test_loss test_acc'.split())
+                      heading=['epoch', 'train_loss', 'train_acc', 'val_loss', 'val_acc', 'test_loss', 'test_acc'])
+with open(os.path.join(log_dir_name, task_name + ".meta"), mode='wt') as f:
+    json.dump(vars(params), f)
 
 
 def clip_gradient(model, clip_value):
