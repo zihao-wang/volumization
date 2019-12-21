@@ -41,7 +41,7 @@ else:
     device = 'cpu'
 
 
-timestamp = time.strftime("%y%m%d-%H%M%S-", time.localtime())
+timestamp = time.strftime("%y%m%d-%H%M%S", time.localtime())
 log_dir_name = os.path.join('log', params.dataset)
 task_name = params.task_id + '-' + timestamp + "-" + params.model
 
