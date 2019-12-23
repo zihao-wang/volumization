@@ -4,7 +4,7 @@ import os
 import random
 import numpy as np
 import torch
-from torch.utils.data.dataset import Subset
+from torch.utils.data.sampler import SubsetRandomSampler
 from torchtext import data
 from torchtext import datasets
 from torchtext.vocab import Vectors, GloVe
@@ -67,21 +67,21 @@ def load_CIFAR10(rate, batch_size=128):
 
 
     trainset = torchvision.datasets.CIFAR10(root='.data/cifar10', train=True, download=True, transform=transform_train)
+    L = len(trainset)
     target_array = np.asarray(trainset.targets)
-    L = len(target_array)
-    thr = rate - (1-rate) / 10
-    target_array = np.where(np.random.rand(L) < thr, target_array, np.random.randint(0, 9, L))
+    thr = (1 - rate) - rate / 10
+    target_array = np.where(np.random.rand(L) <= thr, target_array, np.random.randint(0, 10, L))
     trainset.targets = target_array.tolist()
     idx = np.random.permutation(L)
     train_idx = idx[: int(L * 0.8)]
     val_idx = idx[int(L * 0.8):]
-    trainset = Subset(trainset, train_idx)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    valset = Subset(trainset, val_idx)
-    valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=True, num_workers=2)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                              sampler=SubsetRandomSampler(train_idx))
+    valloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                            sampler=SubsetRandomSampler(val_idx))
 
     testset = torchvision.datasets.CIFAR10(root='.data/cifar10', train=False, download=True, transform=transform_test)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
     return None, trainloader, valloader, testloader
 
 class Logger:

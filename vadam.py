@@ -28,7 +28,7 @@ class Vadam(Optimizer):
     """
 
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
-                 weight_decay=0, amsgrad=False, v=1):
+                 weight_decay=0, amsgrad=False, v=1, alpha=1):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -41,6 +41,7 @@ class Vadam(Optimizer):
                         weight_decay=weight_decay, amsgrad=amsgrad)
         super(Vadam, self).__init__(params, defaults)
         self.v = v
+        self.alpha=alpha
 
     def __setstate__(self, state):
         super(Vadam, self).__setstate__(state)
@@ -104,14 +105,15 @@ class Vadam(Optimizer):
                     denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(group['eps'])
 
                 step_size = group['lr'] / bias_correction1
-
                 p.data.addcdiv_(-step_size, exp_avg, denom)
-                p.data[p > 2 * self.v] = self.v
-                p.data[p < -2 * self.v] = - self.v
 
-                s = torch.abs(p) > self.v
-                p.data[s] = (2 * self.v - p[s].abs()) * torch.sign(p[s])
+                if self.v > 0:
 
-                state['exp_avg'][s].mul_(-1)
+                    signp = torch.sign(p)
+                    absp = torch.abs(p)
+                    absp1v = absp > self.v
+
+                    p.data[absp1v] = ((1 + self.alpha) * self.v - self.alpha * absp[absp1v]) * signp[absp1v]
+                    state['exp_avg'][absp1v].mul_(-self.alpha)
         return loss
 

@@ -45,7 +45,7 @@ if __name__ == "__main__":
         best_val_acc = 0
         test_acc_at_best_val_acc = 0
         log_df = case['log']
-        for _, (val_acc, test_acc) in log_df[['val_acc', 'test_acc']].iterrows():
+        for _, (val_acc, test_acc) in log_df[[' val_acc', ' test_acc']].iterrows():
             print(val_acc, test_acc)
             if val_acc > best_val_acc:
                 best_val_acc = val_acc

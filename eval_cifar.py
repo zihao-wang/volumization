@@ -6,8 +6,9 @@ import math
 
 from tqdm import tqdm
 import torch
+from torch import nn
 import torch.nn.functional as F
-import torch.optim as optim
+from torch.optim import SGD
 
 from models import get_model
 from ioutils import get_dataset, Logger
@@ -24,12 +25,12 @@ parser.add_argument('--task_id', type=str, default='default')
 parser.add_argument('--cuda', type=int, default=1)
 # optimizer related
 parser.add_argument('--eps', type=float, default=1.9, help="epsilon for determining the threshold")
-parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
+parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 parser.add_argument('--v', type=float, default=1, help="limitation of volumization")
-parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-parser.add_argument("--num_epochs", type=int, default=50, help="number of epochs")
+parser.add_argument('--batch_size', type=int, default=128, help="batch size")
+parser.add_argument("--num_epochs", type=int, default=100, help="number of epochs")
 # noise ratio
-parser.add_argument('--noise_ratio', type=float, default=0.1, help="noise ratio")
+parser.add_argument('--noise_ratio', type=float, default=0.0, help="noise ratio")
 
 params = parser.parse_args()
 model_for_data = {"IMDB": ["LSTM"], "CIFAR10": ["ResNet18"]}
@@ -42,7 +43,7 @@ else:
     device = 'cpu'
 
 
-timestamp = time.strftime("%y%m%d-%H%M%S-", time.localtime())
+timestamp = time.strftime("%y%m%d-%H%M%S", time.localtime())
 log_dir_name = os.path.join('log', params.dataset)
 task_name = params.task_id + '-' + timestamp + "-" + params.model
 
@@ -52,12 +53,7 @@ train_logger = Logger(task_name=task_name,
 with open(os.path.join(log_dir_name, task_name + ".meta"), mode='wt') as f:
     json.dump(vars(params), f)
 
-
-def clip_gradient(model, clip_value):
-    params = list(filter(lambda p: p.grad is not None, model.parameters()))
-    for p in params:
-        p.grad.data.clamp_(-clip_value, clip_value)
-
+criterion = nn.CrossEntropyLoss()
 
 def train_model(model, _iter):
     total_epoch_loss = 0
@@ -65,21 +61,17 @@ def train_model(model, _iter):
 
     model.train()
     for X, Y in tqdm(_iter):
-        X = X.to(device)
-        Y = Y.to(device)
+        X, Y = X.to(device), Y.to(device)
 
         optim.zero_grad()
-
         logits = model(X)
-        output = F.log_softmax(logits, dim=1)
         preds = torch.max(logits, 1)[1].view(Y.size())
-        loss = F.nll_loss(output, Y)
+        loss = criterion(logits, Y)
+        loss.backward()
+        optim.step()
 
         num_corrects = (preds == Y).float().sum()
         acc = 100.0 * num_corrects/len(Y)
-
-        loss.backward()
-        optim.step()
 
         total_epoch_loss += loss.item()
         total_epoch_acc += acc.item()
@@ -97,9 +89,8 @@ def eval_model(model, _iter):
             Y = Y.to(device)
 
             logits = model(X)
-            output = F.log_softmax(logits, dim=1)
             preds = torch.max(logits, 1)[1].view(Y.size())
-            loss = F.nll_loss(output, Y)
+            loss = criterion(logits, Y)
 
             num_corrects = (preds == Y).float().sum()
             acc = 100.0 * num_corrects / len(Y)
@@ -130,8 +121,8 @@ if __name__ == "__main__":
 
     model = get_model(params.model, **model_params)
     model.to(device)
-
     optim = Vadam(model.parameters(), lr=params.lr, eps=1e-15, v=params.v)
+    # optim = SGD(model.parameters(), lr=params.lr)
 
     # thr = loss_theo(params.eps, params.noise_ratio)
     for epoch in range(params.num_epochs):
