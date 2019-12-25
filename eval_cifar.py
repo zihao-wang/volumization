@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     model = get_model(params.model, **model_params)
     model.to(device)
-    optim = Vadam(model.parameters(), lr=params.lr, eps=1e-15, v=params.v, alpha=params.alpha, auto_v=self.auto)
+    optim = Vadam(model.parameters(), lr=params.lr, eps=1e-15, v=params.v, alpha=params.alpha, auto_v=params.auto)
     # optim = SGD(model.parameters(), lr=params.lr)
 
     # thr = loss_theo(params.eps, params.noise_ratio)
