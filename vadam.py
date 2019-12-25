@@ -28,7 +28,7 @@ class Vadam(Optimizer):
     """
 
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
-                 weight_decay=0, amsgrad=False, v=1, alpha=1):
+                 weight_decay=0, amsgrad=False, v=1, alpha=1, auto_v=True):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -41,6 +41,10 @@ class Vadam(Optimizer):
                         weight_decay=weight_decay, amsgrad=amsgrad)
         super(Vadam, self).__init__(params, defaults)
         self.v = v
+        self.auto = 0
+        if auto_v:
+            self.auto = 1
+            
         self.alpha=alpha
 
     def __setstate__(self, state):
@@ -77,10 +81,17 @@ class Vadam(Optimizer):
                     state['exp_avg'] = torch.zeros_like(p.data)
                     # Exponential moving average of squared gradient values
                     state['exp_avg_sq'] = torch.zeros_like(p.data)
+                    if self.auto:
+                        state['v'] = p.data.max()
+                        
                     if amsgrad:
                         # Maintains max of all exp. moving avg. of sq. grad. values
                         state['max_exp_avg_sq'] = torch.zeros_like(p.data)
-
+                if self.auto:
+                    V = state['v'] * self.v
+                else:
+                    V = self.v
+                    
                 exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
                 if amsgrad:
                     max_exp_avg_sq = state['max_exp_avg_sq']
@@ -107,13 +118,13 @@ class Vadam(Optimizer):
                 step_size = group['lr'] / bias_correction1
                 p.data.addcdiv_(-step_size, exp_avg, denom)
 
-                if self.v > 0:
+                if V > 0:
 
                     signp = torch.sign(p)
                     absp = torch.abs(p)
-                    absp1v = absp > self.v
+                    absp1v = absp > V
 
-                    p.data[absp1v] = ((1 + self.alpha) * self.v - self.alpha * absp[absp1v]) * signp[absp1v]
+                    p.data[absp1v] = ((1 + self.alpha) * V - self.alpha * absp[absp1v]) * signp[absp1v]
                     state['exp_avg'][absp1v].mul_(-self.alpha)
         return loss
 

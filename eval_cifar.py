@@ -31,6 +31,8 @@ parser.add_argument('--batch_size', type=int, default=128, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of epochs")
 # noise ratio
 parser.add_argument('--noise_ratio', type=float, default=0.0, help="noise ratio")
+parser.add_argument('--alpha', type=float, default=1.0, help="alpha")
+parser.add_argument('--auto', type=float, default=False, help="Kaiming-V or not")
 
 params = parser.parse_args()
 model_for_data = {"IMDB": ["LSTM"], "CIFAR10": ["ResNet18"]}
@@ -121,7 +123,7 @@ if __name__ == "__main__":
 
     model = get_model(params.model, **model_params)
     model.to(device)
-    optim = Vadam(model.parameters(), lr=params.lr, eps=1e-15, v=params.v)
+    optim = Vadam(model.parameters(), lr=params.lr, eps=1e-15, v=params.v, alpha=params.alpha, auto_v=self.auto)
     # optim = SGD(model.parameters(), lr=params.lr)
 
     # thr = loss_theo(params.eps, params.noise_ratio)
