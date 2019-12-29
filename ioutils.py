@@ -17,6 +17,8 @@ def get_dataset(dataset, **kwargs):
         return load_IMDB(**kwargs)
     elif dataset == "CIFAR10":
         return load_CIFAR10(**kwargs)
+    elif dataset == "MNIST":
+        return load_MNIST(**kwargs)
     else:
         raise IOError("unknown dataset")
 
@@ -65,7 +67,6 @@ def load_CIFAR10(rate, batch_size=128):
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-
     trainset = torchvision.datasets.CIFAR10(root='.data/cifar10', train=True, download=True, transform=transform_train)
     L = len(trainset)
     target_array = np.asarray(trainset.targets)
@@ -84,11 +85,41 @@ def load_CIFAR10(rate, batch_size=128):
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
     return None, trainloader, valloader, testloader
 
+
+def load_MNIST(rate, batch_size=128):
+    transform_train = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+    ])
+
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+    trainset = torchvision.datasets.MNIST(root=".data/mnist", train=True, download=True, transform=transforms.ToTensor())
+    L = len(trainset)
+    target_array = np.asarray(trainset.targets)
+    thr = (1-rate) - rate/10
+    target_array = np.where(np.random.rand(L) <= thr, target_array, np.random.randint(0, 10, L))
+    trainset.targets = target_array.tolist()
+    idx = np.random.permutation(L)
+    train_idx = idx[: int(L * 0.8)]
+    val_idx = idx[int(L * 0.8):]
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                              sampler=SubsetRandomSampler(train_idx))
+    valloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                            sampler=SubsetRandomSampler(val_idx))
+
+    testset = torchvision.datasets.MNIST(root=".data/mnist", train=False, download=True, transform=transforms.ToTensor())
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+    return None, trainloader, valloader, testloader
+
+
+
 class Logger:
-    def __init__(self,  task_name, dir_name='log', heading=None):
+    def __init__(self, task_name, dir_name='log', heading=None):
         os.makedirs(dir_name, exist_ok=True)
         self.logfile = os.path.join(dir_name, task_name + ".log")
         assert not os.path.exists(self.logfile)
+        # todo: need hash to discriminate different tasks
         self.heading = heading
         if heading:
             self.L = len(heading)
@@ -105,7 +136,7 @@ class Logger:
         if self.heading and verbose:
             print("|".join("{}: {:.4f}".format(k, v) for k, v in zip(self.heading, entry)))
         with open(self.logfile, mode='at') as f:
-            f.write(", ".join(str(e) for e in entry)+"\n")
+            f.write(", ".join(str(e) for e in entry) + "\n")
 
 
 if __name__ == "__main__":

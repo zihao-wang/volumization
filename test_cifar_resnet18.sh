@@ -5,4 +5,3 @@ do
     echo CASE: NR $nr V $v
     python eval_cifar.py --noise_ratio=$nr --v=$v --task_id=try
   done
-done

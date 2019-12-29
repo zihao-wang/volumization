@@ -18,7 +18,7 @@ def is_log(f):
     return f.split('.')[-1] == 'log'
 
 
-row_of_interests = ['v', 'noise_ratio']
+row_of_interests = ['v', 'noise_ratio', 'alpha']
 
 
 if __name__ == "__main__":
@@ -40,7 +40,7 @@ if __name__ == "__main__":
                     cases[k1+k2]['meta'] = json.load(metafile)
 
     df = pd.DataFrame(columns=row_of_interests + ['test_acc'])
-    for case in cases.values():
+    for key, case in cases.items():
         new_dict = {roi: case['meta'][roi] for roi in row_of_interests}
         best_val_acc = 0
         test_acc_at_best_val_acc = 0
@@ -51,6 +51,8 @@ if __name__ == "__main__":
                 best_val_acc = val_acc
                 test_acc_at_best_val_acc = test_acc
         new_dict['test_acc'] = test_acc_at_best_val_acc
+        new_dict['val_acc'] = best_val_acc
+        new_dict['key'] = "k" + key
         print(new_dict)
         df = df.append(new_dict, ignore_index=True)
-    df.to_csv(os.path.join(log_dir_name, params.task_id + '.csv'))
+    df.to_csv(params.dataset + "-" + params.model + "-" + params.task_id + '.csv')
