@@ -51,8 +51,18 @@ def load_IMDB(rate=0.2, batch_size=32):
                                                                    repeat=False,
                                                                    shuffle=True)
 
-    return TEXT.vocab.vectors, train_iter, valid_iter, test_iter
+    return TEXT.vocab.vectors, BatchWrapper(train_iter), BatchWrapper(valid_iter), BatchWrapper(test_iter)
 
+
+class BatchWrapper:
+    def __init__(self, dataset):
+        self.dataset = dataset
+    def __iter__(self):
+        for batch in self.dataset:
+            yield batch.text[0], batch.label
+
+    def __len__(self):
+        return len(self.dataset)
 
 def load_CIFAR10(rate, batch_size=128):
     transform_train = transforms.Compose([
@@ -70,7 +80,7 @@ def load_CIFAR10(rate, batch_size=128):
     trainset = torchvision.datasets.CIFAR10(root='.data/cifar10', train=True, download=True, transform=transform_train)
     L = len(trainset)
     target_array = np.asarray(trainset.targets)
-    thr = (1 - rate) - rate / 10
+    thr = 1 - rate * 10 / 9
     target_array = np.where(np.random.rand(L) <= thr, target_array, np.random.randint(0, 10, L))
     trainset.targets = target_array.tolist()
     idx = np.random.permutation(L)
@@ -97,7 +107,7 @@ def load_MNIST(rate, batch_size=128):
     trainset = torchvision.datasets.MNIST(root=".data/mnist", train=True, download=True, transform=transforms.ToTensor())
     L = len(trainset)
     target_array = np.asarray(trainset.targets)
-    thr = (1-rate) - rate/10
+    thr = 1 - rate * 10 / 9
     target_array = np.where(np.random.rand(L) <= thr, target_array, np.random.randint(0, 10, L))
     trainset.targets = target_array.tolist()
     idx = np.random.permutation(L)
@@ -124,7 +134,7 @@ class Logger:
         if heading:
             self.L = len(heading)
             with open(self.logfile, mode='at') as f:
-                f.write(", ".join(heading) + '\n')
+                f.write(",".join(heading) + '\n')
         else:
             self.L = -1
 

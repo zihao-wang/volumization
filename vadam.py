@@ -165,7 +165,7 @@ class Vadam2(Optimizer):
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
         defaults = dict(lr=lr, betas=betas, eps=eps,
                         weight_decay=weight_decay, amsgrad=amsgrad)
-        super(Vadam, self).__init__(params, defaults)
+        super(Vadam2, self).__init__(params, defaults)
         self.v = v
         self.auto = 0
         if auto_v:
@@ -244,12 +244,9 @@ class Vadam2(Optimizer):
                 step_size = group['lr'] / bias_correction1
                 p.data.addcdiv_(-step_size, exp_avg, denom)
 
-                if V > 0:
-                    signp = torch.sign(p)
-                    absp = torch.abs(p)
-                    absp1v = absp > V
+                absp = torch.abs(p)
+                state['exp_avg'][absp > V].mul_(self.alpha)
+                p.data.addcmul_(1-self.alpha, V - absp, (p > V).float() - (p < -V).float())
 
-                    p.data[absp1v] = ((1 + self.alpha) * V - self.alpha * absp[absp1v]) * signp[absp1v]
-                    state['exp_avg'][absp1v].mul_(-self.alpha)
         return loss
 
