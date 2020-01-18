@@ -10,7 +10,7 @@ def get_model(model, **kwargs):
     elif model == "LSTMATT":
         return AttentionModel(**kwargs)
     elif model == "ResNet18":
-        return ResNet18()
+        return ResNet18(**kwargs)
     elif model == "DNN":
         return DNN()
     else:

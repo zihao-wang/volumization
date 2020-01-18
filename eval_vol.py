@@ -22,12 +22,13 @@ parser.add_argument('--cuda', type=int, default=1)
 # optimizer related
 parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 parser.add_argument('--v', type=float, default=1, help="limitation of volumization")
+parser.add_argument('--alpha', type=float, default=1.0, help="alpha")
+parser.add_argument('--auto', type=float, default=True, help="Kaiming-V or not")
+parser.add_argument('--weight_decay', type=float, default=0, help="default is None")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of epochs")
 # noise ratio
 parser.add_argument('--noise_ratio', type=float, default=0.0, help="noise ratio")
-parser.add_argument('--alpha', type=float, default=1.0, help="alpha")
-parser.add_argument('--auto', type=float, default=True, help="Kaiming-V or not")
 
 params = parser.parse_args()
 model_for_data = {"MNIST": ["DNN"],
@@ -117,7 +118,9 @@ if __name__ == "__main__":
 
     model = get_model(params.model, **model_params)
     model.to(device)
-    optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15, v=params.v, alpha=params.alpha, auto_v=params.auto)
+    optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,
+                   v=params.v, alpha=params.alpha, auto_v=params.auto,
+                   weight_decay=params.weight_decay)
     for epoch in range(params.num_epochs):
         train_loss, train_acc = train_model(model, train_iter)
         val_loss, val_acc = eval_model(model, valid_iter)
