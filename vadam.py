@@ -243,10 +243,10 @@ class Vadam2(Optimizer):
 
                 step_size = group['lr'] / bias_correction1
                 p.data.addcdiv_(-step_size, exp_avg, denom)
-
-                absp = torch.abs(p)
-                state['exp_avg'][absp > V].mul_(self.alpha)
-                p.data.addcmul_(1-self.alpha, V - absp, (p > V).float() - (p < -V).float())
+                if V > 0:
+                    absp = torch.abs(p)
+                    state['exp_avg'][absp > V].mul_(self.alpha)
+                    p.data.addcmul_(1-self.alpha, V - absp, (p > V).float() - (p < -V).float())
 
         return loss
 
