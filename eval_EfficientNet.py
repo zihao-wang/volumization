@@ -24,11 +24,11 @@ parser.add_argument('--load_from', type=str, default="")
 # optimizer related
 parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 parser.add_argument('--v', type=float, default=-1, help="limitation of volumization")
-parser.add_argument('--alpha', type=float, default=1.0, help="alpha")
+parser.add_argument('--alpha', type=float, default=0.5, help="alpha")
 parser.add_argument('--auto', type=float, default=True, help="Kaiming-V or not")
 parser.add_argument('--weight_decay', type=float, default=0, help="default is None")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
-parser.add_argument("--num_epochs", type=int, default=100, help="number of epochs")
+parser.add_argument("--num_epochs", type=int, default=50, help="number of epochs")
 # noise ratio
 parser.add_argument('--noise_ratio', type=float, default=0.0, help="noise ratio")
 
@@ -92,19 +92,22 @@ def eval_model(model, _iter):
             X, Y = F.interpolate(X.to(device), size=240), Y.to(device)
 
             logits = model(X)
-            preds1 = torch.max(logits, 1)[1].view(Y.size())
-            preds5 = logits.topk(5, 1, True, True).view(Y.size(), 5)
+            preds1 = torch.max(logits, 1)[1].reshape(-1, 1)
+            preds5 = logits.topk(5, 1, True, True)[1]
             loss = criterion(logits, Y)
 
+            Y = Y.reshape(-1, 1)
             top1_num_corrects = (preds1 == Y).float().sum()
-            top5_num_corrects = (preds5 == Y.view(Y.size(), 1)).float().sum()
+            top5_num_corrects = (preds5 == Y.expand_as(preds5)).float().sum()
 
             total_epoch_loss += loss.item()
             total_epoch_acc1 += top1_num_corrects.item()
             total_epoch_acc5 += top5_num_corrects.item()
-            total_counter += Y.size()
+            total_counter += len(Y)
 
-    return total_epoch_loss / total_counter, total_epoch_acc1 / total_counter, total_epoch_acc5 / total_counter
+    return (total_epoch_loss / len(_iter),
+            total_epoch_acc1 / total_counter * 100,
+            total_epoch_acc5 / total_counter * 100)
 
 
 if __name__ == "__main__":
