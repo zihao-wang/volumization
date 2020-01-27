@@ -108,9 +108,7 @@ def eval_model(model, _iter):
 
 
 if __name__ == "__main__":
-    embedding, train_iter, test_iter = get_dataset("TinyImageNet",
-                                                   rate=params.noise_ratio,
-                                                   batch_size=params.batch_size)
+    train_iter, test_iter = get_dataset("TinyImageNet", rate=params.noise_ratio, batch_size=params.batch_size)
 
     model = get_model("EfficientNet")
     if params.load_from:

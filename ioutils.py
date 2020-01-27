@@ -176,7 +176,7 @@ def load_TinyImageNet(batch_size=128, size=240, **kwargs):
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
     testset = TinyImageNet(root='.data', train=False, download=True, transform=transform_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
-    return None, trainloader, testloader
+    return trainloader, testloader
 
 
 class TinyImageNet(torchvision.datasets.VisionDataset):
