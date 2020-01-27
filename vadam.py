@@ -178,6 +178,21 @@ class Vadam2(Optimizer):
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
 
+
+    def quantize(self):
+        for group in self.param_groups:
+            for p in group['params']:
+                state = self.state[p]
+                if self.auto:
+                    V = state['v'] * self.v
+                else:
+                    V = self.v
+
+                if V > 0:
+                    p.data[p.data > 0] = V
+                    p.data[p.data < 0] = -V
+        
+
     def step(self, closure=None):
         """Performs a single optimization step.
 
