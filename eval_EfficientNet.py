@@ -20,7 +20,7 @@ parser.add_argument('--dataset', type=str, default="TinyImageNet")
 parser.add_argument('--model', type=str, default="EfficientNet")
 parser.add_argument('--task_id', type=str, default='default')
 parser.add_argument('--cuda', type=int, default=1)
-parser.add_argument('--load_from', type='str', default="")
+parser.add_argument('--load_from', type=str, default="")
 # optimizer related
 parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 parser.add_argument('--v', type=float, default=-1, help="limitation of volumization")
