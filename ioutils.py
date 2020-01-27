@@ -173,18 +173,10 @@ def load_TinyImageNet(batch_size=128, size=240, **kwargs):
     ])
 
     trainset = TinyImageNet(root='.data', train=True, download=False, transform=transform_train)
-    L = len(trainset)
-    idx = np.random.permutation(L)
-    train_idx = idx[: int(L * 0.8)]
-    val_idx = idx[int(L * 0.8):]
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                              sampler=SubsetRandomSampler(train_idx))
-    valloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                            sampler=SubsetRandomSampler(val_idx))
-
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
     testset = TinyImageNet(root='.data', train=False, download=True, transform=transform_test)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
-    return None, trainloader, valloader, testloader
+    return None, trainloader, testloader
 
 
 class TinyImageNet(torchvision.datasets.VisionDataset):

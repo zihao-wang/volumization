@@ -20,6 +20,7 @@ parser.add_argument('--dataset', type=str, default="TinyImageNet")
 parser.add_argument('--model', type=str, default="EfficientNet")
 parser.add_argument('--task_id', type=str, default='default')
 parser.add_argument('--cuda', type=int, default=1)
+parser.add_argument('--load_from', type='str', default="")
 # optimizer related
 parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 parser.add_argument('--v', type=float, default=-1, help="limitation of volumization")
@@ -38,7 +39,6 @@ if torch.cuda.is_available():
 else:
     print("cuda not work")
     device = 'cpu'
-
 print(device)
 
 timestamp = time.strftime("%y%m%d-%H%M%S", time.localtime())
@@ -47,10 +47,9 @@ param_dict = vars(params)
 config_hash = hashlib.sha224(json.dumps(param_dict).encode()).hexdigest()
 task_name = params.task_id + '-' + timestamp + config_hash[:4] + "-" + params.model
 
-
 train_logger = Logger(task_name=task_name,
                       dir_name=log_dir_name,
-                      heading=['epoch', 'train_loss', 'train_acc', 'val_loss', 'val_acc', 'test_loss', 'test_acc'],
+                      heading=['epoch', 'train_loss', 'train_acc', 'test_loss', 'test_acc1', 'test_acc5'],
                       )
 with open(os.path.join(log_dir_name, task_name + ".meta"), mode='wt') as f:
     json.dump(param_dict, f)
@@ -64,7 +63,7 @@ def train_model(model, _iter):
 
     model.train()
     for X, Y in tqdm(_iter):
-        X, Y = F.interpolate(X, size=240).to(device), Y.to(device)
+        X, Y = F.interpolate(X.to(device), size=240), Y.to(device)
 
         optim.zero_grad()
         logits = model(X)
@@ -84,38 +83,47 @@ def train_model(model, _iter):
 
 def eval_model(model, _iter):
     total_epoch_loss = 0
-    total_epoch_acc = 0
+    total_epoch_acc1 = 0
+    total_epoch_acc5 = 0
+    total_counter = 0
     model.eval()
     with torch.no_grad():
         for idx, (X, Y) in enumerate(_iter):
-            X, Y = F.interpolate(X, size=240).to(device), Y.to(device)
+            X, Y = F.interpolate(X.to(device), size=240), Y.to(device)
 
             logits = model(X)
-            preds = torch.max(logits, 1)[1].view(Y.size())
+            preds1 = torch.max(logits, 1)[1].view(Y.size())
+            preds5 = logits.topk(5, 1, True, True).view(Y.size(), 5)
             loss = criterion(logits, Y)
 
-            num_corrects = (preds == Y).float().sum()
-            acc = 100.0 * num_corrects / len(Y)
+            top1_num_corrects = (preds1 == Y).float().sum()
+            top5_num_corrects = (preds5 == Y.view(Y.size(), 1)).float().sum()
 
             total_epoch_loss += loss.item()
-            total_epoch_acc += acc.item()
+            total_epoch_acc1 += top1_num_corrects.item()
+            total_epoch_acc5 += top5_num_corrects.item()
+            total_counter += Y.size()
 
-    return total_epoch_loss / len(_iter), total_epoch_acc / len(_iter)
+    return total_epoch_loss / total_counter, total_epoch_acc1 / total_counter, total_epoch_acc5 / total_counter
 
 
 if __name__ == "__main__":
-    embedding, train_iter, valid_iter, test_iter = get_dataset("TinyImageNet",
-                                                               rate=params.noise_ratio,
-                                                               batch_size=params.batch_size)
+    embedding, train_iter, test_iter = get_dataset("TinyImageNet",
+                                                   rate=params.noise_ratio,
+                                                   batch_size=params.batch_size)
 
     model = get_model("EfficientNet")
+    if params.load_from:
+        model.load_state_dict(torch.load(os.path.join("saved_model", params.load_from)))
     model.to(device)
     optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,
                    v=params.v, alpha=params.alpha, auto_v=params.auto,
                    weight_decay=params.weight_decay)
     for epoch in range(params.num_epochs):
         train_loss, train_acc = train_model(model, train_iter)
-        val_loss, val_acc = eval_model(model, valid_iter)
-        test_loss, test_acc = eval_model(model, test_iter)
-        train_logger.append(epoch + 1, train_loss, train_acc, val_loss, val_acc, test_loss, test_acc)
+        test_loss, test_acc1, test_acc5 = eval_model(model, test_iter)
+        train_logger.append(epoch + 1, train_loss, train_acc, test_loss, test_acc1, test_acc5)
 
+    model.cpu()
+    os.makedirs("saved_model", exist_ok=True)
+    torch.save(model.state_dict(), os.path.join("saved_model", task_name + ".pt"))
