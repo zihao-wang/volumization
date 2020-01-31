@@ -14,7 +14,8 @@ def get_model(model, **kwargs):
         return ResNet18(**kwargs)
     elif model == "DNN":
         return DNN()
-    elif model == "EfficientNet":
-        return EfficientNet.from_name('efficientnet-b1')
+    elif "efficientnet" == model.split('-')[0]:
+        return EfficientNet.from_pretrained(model)
     else:
+        print(model)
         raise IOError("Model not defined")

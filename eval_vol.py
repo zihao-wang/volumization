@@ -116,6 +116,9 @@ if __name__ == "__main__":
     if params.model == "LSTM" or params.model=="LSTMATT":
         model_params["weights"] = embedding
 
+    if params.dataset == "CIFAR100":
+        model_params["num_classes"] = 100
+
     model = get_model(params.model, **model_params)
     model.to(device)
     optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,

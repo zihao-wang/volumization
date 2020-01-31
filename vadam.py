@@ -174,10 +174,9 @@ class Vadam2(Optimizer):
         self.alpha = alpha
 
     def __setstate__(self, state):
-        super(Vadam, self).__setstate__(state)
+        super(Vadam2, self).__setstate__(state)
         for group in self.param_groups:
             group.setdefault('amsgrad', False)
-
 
     def quantize(self):
         for group in self.param_groups:
@@ -191,7 +190,6 @@ class Vadam2(Optimizer):
                 if V > 0:
                     p.data[p.data > 0] = V
                     p.data[p.data < 0] = -V
-        
 
     def step(self, closure=None):
         """Performs a single optimization step.
@@ -262,6 +260,5 @@ class Vadam2(Optimizer):
                     absp = torch.abs(p)
                     state['exp_avg'][absp > V].mul_(self.alpha)
                     p.data.addcmul_(1-self.alpha, V - absp, (p > V).float() - (p < -V).float())
-
         return loss
 
