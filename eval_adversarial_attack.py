@@ -210,8 +210,8 @@ if __name__ == "__main__":
             test_loss, test_acc = eval_model(model, test_iter)
             train_logger.append(epoch + 1, train_loss, train_acc, val_loss, val_acc, test_loss, test_acc)
 
-    os.makedirs("saved_model", exist_ok=True)
-    torch.save(model.state_dict(), save_path)
+        os.makedirs("saved_model", exist_ok=True)
+        torch.save(model.state_dict(), save_path)
 
     aar = {'epsilon': [], 'test_acc': []}
     for epsilon in [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]:
