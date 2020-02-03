@@ -119,7 +119,7 @@ if __name__ == "__main__":
     if params.load_from:
         model.load_state_dict(torch.load(params.load_from))
     model.to(device)
-    optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,
+    optim = Vadam2(model.parameters(), lr=params.lr * params.batch_size / 128, eps=1e-15,
                    v=params.v, alpha=params.alpha, auto_v=params.auto,
                    weight_decay=params.weight_decay)
     imgsize = EfficientNet.get_image_size(params.model)
