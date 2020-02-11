@@ -27,6 +27,7 @@ parser.add_argument('--auto', type=float, default=True, help="Kaiming-V or not")
 parser.add_argument('--weight_decay', type=float, default=0, help="default is None")
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of epochs")
+parser.add_argument("--lq", type=bool, default=False)
 # noise ratio
 parser.add_argument('--noise_ratio', type=float, default=0.0, help="noise ratio")
 
@@ -55,7 +56,19 @@ train_logger = Logger(task_name=task_name,
 with open(os.path.join(log_dir_name, task_name + ".meta"), mode='wt') as f:
     json.dump(param_dict, f)
 
-criterion = nn.CrossEntropyLoss()
+
+def lq_loss(logits, Y, q=0.7):
+    index1 = torch.arange(len(Y))
+    prob = torch.nn.functional.softmax(logits, 1)
+    loss = 1 - prob[index1, Y.view(-1)] ** q
+    # print(loss.mean())
+    return loss.mean() / q
+
+
+if params.lq:
+    criterion = lq_loss
+else:
+    criterion = nn.CrossEntropyLoss()
 
 
 def train_model(model, _iter):
@@ -124,9 +137,13 @@ if __name__ == "__main__":
     optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,
                    v=params.v, alpha=params.alpha, auto_v=params.auto,
                    weight_decay=params.weight_decay)
+    test_acc_list = []
     for epoch in range(params.num_epochs):
         train_loss, train_acc = train_model(model, train_iter)
         val_loss, val_acc = eval_model(model, valid_iter)
         test_loss, test_acc = eval_model(model, test_iter)
+        test_acc_list.append(test_acc)
         train_logger.append(epoch + 1, train_loss, train_acc, val_loss, val_acc, test_loss, test_acc)
+    import numpy as np
+    print(np.max(test_acc_list), np.mean(test_acc_list[-10:]))
 

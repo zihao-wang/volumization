@@ -267,7 +267,6 @@ class Vadam2(Optimizer):
         return loss
 
 
-
 class Vadamw(Optimizer):
     r"""Implements Adam algorithm.
 
