@@ -146,4 +146,5 @@ if __name__ == "__main__":
         train_logger.append(epoch + 1, train_loss, train_acc, val_loss, val_acc, test_loss, test_acc)
     import numpy as np
     print(np.max(test_acc_list), np.mean(test_acc_list[-10:]))
+    torch.save(model.state_dict(), "{}nr{}v{}alpha{}.pt".format(task_name, params.noise_ratio, params.v, params.alpha))
 
