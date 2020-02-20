@@ -1,4 +1,6 @@
 .idea
+*.pt
+*.png
 .data
 .vector_cache
 .swp
