@@ -12,6 +12,7 @@ import numpy as np
 from models import get_model
 from ioutils import get_dataset, Logger
 from vadam import Vadam2
+from vlaprop import VLaProp
 
 parser = argparse.ArgumentParser(description='Volumization Evaluation')
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
 
     model = get_model(params.model, **model_params)
     model.to(device)
-    optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,
+    optim = VLaProp(model.parameters(), lr=params.lr, eps=1e-15,
                    v=params.v, alpha=params.alpha, auto_v=params.auto,
                    weight_decay=params.weight_decay)
     test_acc_list = []

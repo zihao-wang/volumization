@@ -258,8 +258,8 @@ if __name__ == "__main__":
         test_acc, _ = test(model, test_iter, epsilon)
         aar['epsilon'].append(epsilon)
         aar['test_acc'].append(test_acc)
-    os.makedirs("new_adversarial_attack", exist_ok=True)
+    os.makedirs("results/new_adversarial_attack", exist_ok=True)
     print(case_name)
-    with open(os.path.join('new_adversarial_attack', '{}.json'.format(case_name)), mode='wt') as f:
+    with open(os.path.join('results/new_adversarial_attack', '{}.json'.format(case_name)), mode='wt') as f:
         json.dump(aar, f)
 
