@@ -41,7 +41,7 @@ class VSGD(Optimizer):
         The Nesterov version is analogously modified.
     """
 
-    def __init__(self, params, auto=True, v=0, alpha=1, lr=1e-3, momentum=0, dampening=0,
+    def __init__(self, params, auto_v=True, v=0, alpha=1, lr=1e-3, momentum=0, dampening=0,
                  weight_decay=0, nesterov=False):
         # if lr is not required and lr < 0.0:
         #     raise ValueError("Invalid learning rate: {}".format(lr))
@@ -49,17 +49,17 @@ class VSGD(Optimizer):
             raise ValueError("Invalid momentum value: {}".format(momentum))
         if weight_decay < 0.0:
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
-        self.auto = auto
+        self.auto = auto_v
         self.v = v
         self.alpha = alpha
         defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
                         weight_decay=weight_decay, nesterov=nesterov)
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
-        super(SGD, self).__init__(params, defaults)
+        super(VSGD, self).__init__(params, defaults)
 
-    def __setstate__(self, state):
-        super(SGD, self).__setstate__(state)
+    def __setsta b bte__(self, state):
+        super(VSGD, self).__setstate__(state)
         for group in self.param_groups:
             group.setdefault('nesterov', False)
 
@@ -118,8 +118,9 @@ class VSGD(Optimizer):
                 if group['weight_decay'] != 0:
                     d_p.add_(group['weight_decay'], p.data)
 
-                if V > 0 and self.alpha != 1:
+                if self.alpha != 1:
                     absp = torch.abs(p)
+                    state['exp_avg'][absp > V].mul_(self.alpha)
                     p.data.addcmul_(1-self.alpha, V - absp, (p > V).float() - (p < -V).float())
 
         return loss

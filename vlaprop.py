@@ -217,7 +217,7 @@ class VLaProp(Optimizer):
                 else:
                     V = self.v
 
-                if V > 0 and self.alpha != 1:
+                if self.alpha != 1:
                     absp = torch.abs(p)
                     state['exp_avg'][absp > V].mul_(self.alpha)
                     p.data.addcmul_(1-self.alpha, V - absp, (p > V).float() - (p < -V).float())

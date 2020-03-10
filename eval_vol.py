@@ -13,6 +13,7 @@ from models import get_model
 from ioutils import get_dataset, Logger
 from vadam import Vadam2
 from vlaprop import VLaProp
+from vsgd import VSGD
 
 parser = argparse.ArgumentParser(description='Volumization Evaluation')
 
@@ -21,6 +22,7 @@ parser.add_argument('--dataset', type=str, default="MNIST")
 parser.add_argument('--model', type=str, default="DNN")
 parser.add_argument('--task_id', type=str, default='default')
 parser.add_argument('--cuda', type=int, default=1)
+parser.add_argument('--save', type=bool, default=False)
 # optimizer related
 parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 parser.add_argument('--v', type=float, default=1, help="limitation of volumization")
@@ -30,6 +32,7 @@ parser.add_argument('--weight_decay', type=float, default=0, help="default is No
 parser.add_argument('--batch_size', type=int, default=128, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of epochs")
 parser.add_argument("--lq", type=bool, default=False)
+parser.add_argument("--optimizer", type=str, default='adam')
 # noise ratio
 parser.add_argument('--noise_ratio', type=float, default=0.0, help="noise ratio")
 
@@ -136,9 +139,20 @@ if __name__ == "__main__":
 
     model = get_model(params.model, **model_params)
     model.to(device)
-    optim = VLaProp(model.parameters(), lr=params.lr, eps=1e-15,
-                   v=params.v, alpha=params.alpha, auto_v=params.auto,
-                   weight_decay=params.weight_decay)
+
+    if params.optimizer == "laprop":
+        optim = VLaProp(model.parameters(), lr=params.lr, eps=1e-15,
+                       v=params.v, alpha=params.alpha, auto_v=params.auto,
+                       weight_decay=params.weight_decay)
+    elif params.optimizer == "adam":
+        optim = Vadam2(model.parameters(), lr=params.lr, eps=1e-15,
+                        v=params.v, alpha=params.alpha, auto_v=params.auto,
+                        weight_decay=params.weight_decay)
+    elif params.optimizer == "sgd":
+        optim = VSGD(model.parameters(), lr=params.lr,
+                       v=params.v, alpha=params.alpha, auto_v=params.auto,
+                       weight_decay=params.weight_decay)
+
     test_acc_list = []
     for epoch in range(params.num_epochs):
         train_loss, train_acc = train_model(model, train_iter)
@@ -147,6 +161,7 @@ if __name__ == "__main__":
         test_acc_list.append(test_acc)
         train_logger.append(epoch + 1, train_loss, train_acc, val_loss, val_acc, test_loss, test_acc)
     print(np.max(test_acc_list), np.mean(test_acc_list[-10:]))
-    model.cpu()
-    torch.save(model.state_dict(), "{}nr{}v{}alpha{}.pt".format(task_name, params.noise_ratio, params.v, params.alpha))
+    if params.save:
+        model.cpu()
+        torch.save(model.state_dict(), "{}nr{}v{}alpha{}.pt".format(task_name, params.noise_ratio, params.v, params.alpha))
 
