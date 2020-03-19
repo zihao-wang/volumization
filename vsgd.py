@@ -58,7 +58,7 @@ class VSGD(Optimizer):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
         super(VSGD, self).__init__(params, defaults)
 
-    def __setsta b bte__(self, state):
+    def __setstate__(self, state):
         super(VSGD, self).__setstate__(state)
         for group in self.param_groups:
             group.setdefault('nesterov', False)
