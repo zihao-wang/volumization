@@ -56,10 +56,10 @@ class VSGD(Optimizer):
                         weight_decay=weight_decay, nesterov=nesterov)
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
-        super(SGD, self).__init__(params, defaults)
+        super(VSGD, self).__init__(params, defaults)
 
     def __setstate__(self, state):
-        super(SGD, self).__setstate__(state)
+        super(VSGD, self).__setstate__(state)
         for group in self.param_groups:
             group.setdefault('nesterov', False)
 
